@@ -35,7 +35,7 @@ def build_super_resolution_model(input_shape=(64, 64, 3)):
     return model
 
 
-def train_model(model, low_res_images, high_res_images, batch_size=32, epochs=100):
+def train_model(model, low_res_images, high_res_images, batch_size=32, epochs=1000):
     print("Training the model...")
     model.fit(low_res_images, high_res_images, batch_size=batch_size, epochs=epochs, validation_split=0.2)
     return model
@@ -57,7 +57,7 @@ def load_or_train_model(model_path, dataset_path):
         high_res_images = images
 
         model = build_super_resolution_model()
-        model = train_model(model, low_res_images, high_res_images, batch_size=16, epochs=200)
+        model = train_model(model, low_res_images, high_res_images, batch_size=16, epochs=2000)
         save_trained_model(model, model_path)
     return model
 
