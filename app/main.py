@@ -10,12 +10,11 @@ if __name__ == "__main__":
     OUTPUT_IMAGE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output_assets",
                                      "output_super_resolved_image.jpg")
 
-    # Multiplier for scaling resolution
-
-    MULTIPLIER = int(input("Enter a multiplier (ex 2, 3, 4): "))
-
     # Load or train the model
     model = load_or_train_model(MODEL_PATH, DATASET_PATH)
+
+    # Multiplier for scaling resolution
+    MULTIPLIER = int(input("Enter a multiplier (ex 2, 3, 4): "))
 
     # Super-resolve an image while preserving aspect ratio
     super_resolve_with_multiplier(

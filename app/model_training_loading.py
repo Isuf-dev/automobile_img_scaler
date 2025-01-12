@@ -6,7 +6,6 @@ from keras import Input, Model
 from keras.src.layers import Conv2D, UpSampling2D
 from keras.src.saving.saving_lib import load_model
 
-
 def load_and_preprocess_data(dataset_path, image_size=(128, 128)):
     print("Loading and preprocessing dataset...")
     images = []
@@ -63,26 +62,24 @@ def load_or_train_model(model_path, dataset_path):
     return model
 
 
-def super_resolve_with_multiplier(model, image_path, output_path, multiplier=2, target_size=(64, 64)):
+def super_resolve_with_multiplier(model, image_path, output_path, multiplier=2):
     print(f"Super-resolving the image: {image_path}")
-    input_image = cv2.imread(image_path)
-    input_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
 
-    # Maintain the aspect ratio during downscaling
+    # Read the input image
+    input_image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)  # Preserve original properties
     h, w, _ = input_image.shape
-    new_h, new_w = target_size
-    low_res_image = cv2.resize(input_image, (new_w, new_h))  # Downscale
-    low_res_image = np.expand_dims(low_res_image, axis=0).astype(np.float32) / 255.0
+
+    # Downscale and upscale preserving aspect ratio
+    low_res_image = cv2.resize(input_image, (w // multiplier, h // multiplier))  # Downscale
+    low_res_image = np.expand_dims(low_res_image.astype(np.float32) / 255.0, axis=0)
 
     # Perform super-resolution
     high_res_image = model.predict(low_res_image)[0]
+    high_res_image = (high_res_image * 255.0).astype(input_image.dtype)  # Match input color depth
 
-    # Upscale to the desired size using the multiplier while preserving aspect ratio
-    output_h = h * multiplier
-    output_w = w * multiplier
-    high_res_image = cv2.resize((high_res_image * 255.0).astype(np.uint8), (output_w, output_h))
+    # Resize back to original resolution
+    high_res_image = cv2.resize(high_res_image, (w, h), interpolation=cv2.INTER_CUBIC)
 
-    # Convert back to BGR and save
-    high_res_image = cv2.cvtColor(high_res_image, cv2.COLOR_RGB2BGR)
+    # Save output
     cv2.imwrite(output_path, high_res_image)
     print(f"Super-resolved image saved to {output_path}")
