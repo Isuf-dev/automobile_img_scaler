@@ -1,10 +1,10 @@
 import os
-
 import cv2
 import numpy as np
 from keras import Input, Model
 from keras.src.layers import Conv2D, UpSampling2D
 from keras.src.saving.saving_lib import load_model
+
 
 def load_and_preprocess_data(dataset_path, image_size=(128, 128)):
     print("Loading and preprocessing dataset...")
@@ -35,7 +35,7 @@ def build_super_resolution_model(input_shape=(64, 64, 3)):
     return model
 
 
-def train_model(model, low_res_images, high_res_images, batch_size=32, epochs=1000):
+def train_model(model, low_res_images, high_res_images, batch_size=32, epochs=100):
     print("Training the model...")
     model.fit(low_res_images, high_res_images, batch_size=batch_size, epochs=epochs, validation_split=0.2)
     return model
@@ -57,29 +57,36 @@ def load_or_train_model(model_path, dataset_path):
         high_res_images = images
 
         model = build_super_resolution_model()
-        model = train_model(model, low_res_images, high_res_images, batch_size=16, epochs=2000)
+        model = train_model(model, low_res_images, high_res_images, batch_size=16, epochs=200)
         save_trained_model(model, model_path)
     return model
 
 
-def super_resolve_with_multiplier(model, image_path, output_path, multiplier=2):
-    print(f"Super-resolving the image: {image_path}")
+# Refactor this function to accept image binaries instead of a file path
+def super_resolve_with_multiplier(model, image_binary, multiplier=2, target_size=(64, 64)):
+    print("Super-resolving the image...")
 
-    # Read the input image
-    input_image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)  # Preserve original properties
+    # Decode the image from binary data
+    nparr = np.frombuffer(image_binary, np.uint8)
+    input_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    if input_image is None:
+        raise ValueError("Unable to decode the provided image binary.")
+
+    # Maintain the aspect ratio during downscaling
     h, w, _ = input_image.shape
-
-    # Downscale and upscale preserving aspect ratio
-    low_res_image = cv2.resize(input_image, (w // multiplier, h // multiplier))  # Downscale
-    low_res_image = np.expand_dims(low_res_image.astype(np.float32) / 255.0, axis=0)
+    new_h, new_w = target_size
+    low_res_image = cv2.resize(input_image, (new_w, new_h))  # Downscale
+    low_res_image = np.expand_dims(low_res_image, axis=0).astype(np.float32) / 255.0
 
     # Perform super-resolution
     high_res_image = model.predict(low_res_image)[0]
-    high_res_image = (high_res_image * 255.0).astype(input_image.dtype)  # Match input color depth
 
-    # Resize back to original resolution
-    high_res_image = cv2.resize(high_res_image, (w, h), interpolation=cv2.INTER_CUBIC)
+    # Upscale to the desired size using the multiplier while preserving aspect ratio
+    output_h = h * multiplier
+    output_w = w * multiplier
+    high_res_image = cv2.resize((high_res_image * 255.0).astype(np.uint8), (output_w, output_h))
 
-    # Save output
-    cv2.imwrite(output_path, high_res_image)
-    print(f"Super-resolved image saved to {output_path}")
+    # Convert back to BGR and return the processed image
+    high_res_image = cv2.cvtColor(high_res_image, cv2.COLOR_RGB2BGR)
+    return high_res_image
